@@ -1,0 +1,13 @@
+# Sidekiq configuration
+:concurrency: 5
+:queues:
+  - default
+  - mailers
+
+# Schedule for hourly FTP sync
+:schedule:
+  ftp_sync:
+    cron: '0 * * * *' # Every hour
+    class: FtpSyncJob
+    queue: default
+    description: "Sync inventory from FTP for all accounts"
