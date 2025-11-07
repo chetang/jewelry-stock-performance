@@ -25,18 +25,30 @@ export function generateSalesData(inventoryRows: InventoryRow[]): SalesRow[] {
   const salesRows: SalesRow[] = []
   const today = new Date()
 
-  // Target: Turn values between 0.5 and 2.0 with normal distribution
-  // Mean turn: 1.25, Std Dev: 0.35 (gives good spread between 0.5-2.0)
-  const meanTurn = 1.25
-  const stdDevTurn = 0.35
+  // Categories with higher turn rates will show surplus (negative needs)
+  const categoryTurnConfig: Record<string, { mean: number; stdDev: number }> = {
+    Studs: { mean: 2.0, stdDev: 0.3 }, // High turn - will show surplus
+    Rings: { mean: 1.9, stdDev: 0.35 }, // High turn - will show surplus
+    Bracelets: { mean: 1.7, stdDev: 0.3 }, // Moderate-high turn - may show surplus
+    // Other categories use default values
+  }
+
+  // Default turn values for categories not specified above
+  const defaultMeanTurn = 1.25
+  const defaultStdDevTurn = 0.35
 
   inventoryRows.forEach((row) => {
     const seed = row["Serial No."]
 
+    const turnConfig = categoryTurnConfig[row.Type] || {
+      mean: defaultMeanTurn,
+      stdDev: defaultStdDevTurn,
+    }
+
     // Generate turn value with normal distribution
-    let targetTurn = normalRandom(meanTurn, stdDevTurn, seed)
-    // Clamp between 0.5 and 2.0
-    targetTurn = Math.max(0.5, Math.min(2.0, targetTurn))
+    let targetTurn = normalRandom(turnConfig.mean, turnConfig.stdDev, seed)
+    // Clamp between 0.5 and 3.0 (increased max to allow for higher surplus)
+    targetTurn = Math.max(0.5, Math.min(3.0, targetTurn))
 
     // Calculate target aging based on turn: aging = 365 / turn
     const targetAging = Math.round(365 / targetTurn)

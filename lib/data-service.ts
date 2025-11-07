@@ -8,15 +8,53 @@ const CSV_URL =
 
 let mockDataCache: any = null
 
-async function loadMockData(idealTurn: number) {
+function generateMemoData(rows: any[]): any[] {
+  const today = new Date()
+
+  return rows.map((row) => {
+    const isOnMemo = Math.random() < 0.3
+
+    if (isOnMemo) {
+      const daysAgo = Math.floor(Math.random() * 180)
+      const shipmentDate = new Date(today)
+      shipmentDate.setDate(shipmentDate.getDate() - daysAgo)
+
+      const daysOnMemo = Math.floor((today.getTime() - shipmentDate.getTime()) / (1000 * 60 * 60 * 24))
+
+      return {
+        ...row,
+        "Memo Status": "On-Memo" as const,
+        "Shipment Date": shipmentDate.toISOString().split("T")[0],
+        "Days On Memo": daysOnMemo,
+      }
+    }
+
+    return {
+      ...row,
+      "Memo Status": "In-House" as const,
+    }
+  })
+}
+
+async function loadMockData(
+  idealTurn: number,
+  itemFilters?: {
+    type?: string[]
+    caratRange?: string[]
+    styleNo?: string[]
+    quality?: string[]
+    memoStatus?: string[]
+    daysOnMemo?: { min: string; max: string }
+  },
+) {
   if (!mockDataCache) {
     const rows = await fetchAndParseCSV(CSV_URL)
-    mockDataCache = aggregateData(rows, idealTurn)
-  } else if (mockDataCache.idealTurn !== idealTurn) {
-    // Recalculate with new ideal turn
-    mockDataCache = aggregateData(mockDataCache.rawRows, idealTurn)
+    const rowsWithMemo = generateMemoData(rows)
+    mockDataCache = { rawRows: rowsWithMemo }
   }
-  return mockDataCache
+
+  const aggregated = aggregateData(mockDataCache.rawRows, idealTurn, itemFilters)
+  return { ...aggregated, rawRows: mockDataCache.rawRows }
 }
 
 export const dataService = {
@@ -25,9 +63,17 @@ export const dataService = {
     date_from: string
     date_to: string
     ideal_turn: number
+    item_filters?: {
+      type?: string[]
+      carat_range?: string[]
+      style_no?: string[]
+      quality?: string[]
+      memo_status?: string[]
+      days_on_memo?: { min: string; max: string }
+    }
   }) {
     if (USE_MOCK_DATA) {
-      const data = await loadMockData(params.ideal_turn)
+      const data = await loadMockData(params.ideal_turn, params.item_filters)
       return {
         data: data.L1,
         types: data.types,
@@ -44,9 +90,17 @@ export const dataService = {
     ideal_turn: number
     category: string
     carat_range: string
+    item_filters?: {
+      type?: string[]
+      carat_range?: string[]
+      style_no?: string[]
+      quality?: string[]
+      memo_status?: string[]
+      days_on_memo?: { min: string; max: string }
+    }
   }) {
     if (USE_MOCK_DATA) {
-      const data = await loadMockData(params.ideal_turn)
+      const data = await loadMockData(params.ideal_turn, params.item_filters)
       return {
         data: data.L2,
       }
@@ -66,7 +120,7 @@ export const dataService = {
     if (USE_MOCK_DATA) {
       const data = await loadMockData(params.ideal_turn)
 
-      // Filter inventory and sales for the specific combination
+      // Filter inventory, sales, and jobs for the specific combination
       const inventoryRows = data.rawRows.filter(
         (r: any) =>
           r.Type === params.category &&
@@ -83,10 +137,19 @@ export const dataService = {
           s.Quality === params.quality,
       )
 
+      const jobsRows = data.jobsRows.filter(
+        (j: any) =>
+          j.Type === params.category &&
+          j["Carat Range"] === params.carat_range &&
+          j.Code === params.sub_category &&
+          j.Quality === params.quality,
+      )
+
       return {
         data: {
           inventoryRows,
           salesRows,
+          jobsRows,
         },
       }
     }
@@ -98,9 +161,17 @@ export const dataService = {
     date_from: string
     date_to: string
     ideal_turn: number
+    item_filters?: {
+      type?: string[]
+      carat_range?: string[]
+      style_no?: string[]
+      quality?: string[]
+      memo_status?: string[]
+      days_on_memo?: { min: string; max: string }
+    }
   }) {
     if (USE_MOCK_DATA) {
-      const data = await loadMockData(params.ideal_turn)
+      const data = await loadMockData(params.ideal_turn, params.item_filters)
 
       return {
         data: data.L2,

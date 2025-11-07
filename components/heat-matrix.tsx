@@ -6,7 +6,17 @@ import { cn } from "@/lib/utils"
 import { getColorForValue } from "@/lib/color-utils"
 import { useState } from "react"
 
-type MetricKey = "inventory_count" | "inventory_value" | "sales_count" | "sales_value" | "turn" | "needs" | "overhang"
+type MetricKey =
+  | "inventory_count"
+  | "inventory_value"
+  | "sales_count"
+  | "sales_value"
+  | "turn"
+  | "needs"
+  | "jobs_count"
+  | "in_house_count"
+  | "on_memo_count"
+  | "avg_days_on_memo"
 
 type Cell = {
   inventory_count?: number
@@ -15,8 +25,11 @@ type Cell = {
   sales_value?: number
   turn?: number
   needs?: number
-  overhang?: number
+  jobs_count?: number
   avg_aging?: number
+  in_house_count?: number
+  on_memo_count?: number
+  avg_days_on_memo?: number
 }
 
 function CellTooltip({
@@ -37,6 +50,8 @@ function CellTooltip({
 
   const hasNoData =
     (!cell.inventory_count || cell.inventory_count === 0) && (!cell.sales_count || cell.sales_count === 0)
+
+  const needsSurplusLabel = (cell.needs || 0) >= 0 ? "Needs:" : "Surplus:"
 
   return (
     <div
@@ -80,13 +95,27 @@ function CellTooltip({
           </div>
 
           <div className="flex justify-between">
-            <span className="text-gray-300">Overhang:</span>
-            <span className="font-medium">{hasNoData ? "-" : formatNumber(cell.overhang || 0)}</span>
+            <span className="text-gray-300">Jobs:</span>
+            <span className="font-medium">{hasNoData ? "-" : formatNumber(cell.jobs_count || 0)}</span>
           </div>
 
           <div className="flex justify-between">
-            <span className="text-gray-300">Needs / Surplus:</span>
+            <span className="text-gray-300">{needsSurplusLabel}</span>
             <span className="font-medium">{hasNoData ? "-" : formatNumber(cell.needs || 0)}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="text-gray-300">In-House / On-Memo:</span>
+            <span className="font-medium">
+              {hasNoData ? "-" : `${formatNumber(cell.in_house_count || 0)} / ${formatNumber(cell.on_memo_count || 0)}`}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="text-gray-300">Avg Days On Memo:</span>
+            <span className="font-medium">
+              {hasNoData || !cell.avg_days_on_memo ? "-" : `${Math.round(cell.avg_days_on_memo)} days`}
+            </span>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import type React from "react"
-import { Package, DollarSign, ShoppingCart, TrendingUp, BarChart3, Clock } from "lucide-react"
+import { Package, DollarSign, ShoppingCart, TrendingUp, BarChart3, Briefcase } from "lucide-react"
 
 type L1Cell = {
   inventory_count?: number
@@ -8,7 +8,7 @@ type L1Cell = {
   sales_value?: number
   turn?: number
   needs?: number
-  overhang?: number
+  jobs_count?: number // Added jobs_count
 }
 
 export function SummaryCards({
@@ -24,7 +24,7 @@ export function SummaryCards({
   const salesValue = rows.reduce((s, r) => s + (r.sales_value || 0), 0)
   const turnVals = rows.map((r) => r.turn || 0)
   const needs = rows.reduce((s, r) => s + (r.needs || 0), 0)
-  const overhang = Math.round(avg(rows.map((r) => r.overhang || 0)))
+  const jobsCount = rows.reduce((s, r) => s + (r.jobs_count || 0), 0)
 
   const items: { t: string; v: string; icon: React.ReactNode }[] = [
     { t: "Inventory Count", v: invCount.toLocaleString(), icon: <Package className="h-4 w-4 text-blue-500" /> },
@@ -45,7 +45,7 @@ export function SummaryCards({
       icon: <TrendingUp className="h-4 w-4 text-orange-500" />,
     },
     { t: "Needs/Surplus", v: needs.toLocaleString(), icon: <BarChart3 className="h-4 w-4 text-purple-500" /> },
-    { t: "Overhang (days)", v: String(overhang), icon: <Clock className="h-4 w-4 text-red-500" /> },
+    { t: "Jobs Count", v: jobsCount.toLocaleString(), icon: <Briefcase className="h-4 w-4 text-amber-500" /> },
   ]
 
   return (

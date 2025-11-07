@@ -6,10 +6,15 @@ import { SummaryCards } from "./summary-cards"
 import { HeatMatrix } from "./heat-matrix"
 import { DetailsTables } from "./details-tables"
 import { DataTableView } from "./data-table-view"
+import { FilterDrawer, defaultFilters, type FilterState } from "./filter-drawer"
+import { FilterBadges } from "./filter-badges"
 import { dataService } from "@/lib/data-service"
 import { useAuth } from "@/lib/auth-context"
 import type { MetricKey, L1Cell } from "@/lib/data-aggregator"
-import { LayoutGrid, Table, Check, X, LogOut } from "lucide-react"
+import { LayoutGrid, Table, Check, X, LogOut, Filter, Save } from "lucide-react"
+import { SaveFilterDialog } from "./save-filter-dialog"
+import { SavedFiltersDropdown } from "./saved-filters-dropdown"
+import { savedFiltersService, type SavedFilter } from "@/lib/saved-filters"
 
 const METRICS: { key: MetricKey; label: string }[] = [
   { key: "inventory_count", label: "Inventory Count" },
@@ -18,7 +23,6 @@ const METRICS: { key: MetricKey; label: string }[] = [
   { key: "sales_value", label: "Sales Value" },
   { key: "turn", label: "Turn" },
   { key: "needs", label: "Needs/Surplus" },
-  { key: "overhang", label: "Overhang (days)" },
 ]
 
 function avg(arr: number[]) {
@@ -46,8 +50,8 @@ export function JewelryDashboard() {
   const [dateFrom, setDateFrom] = useState<string>("2023-01-01")
   const [dateTo, setDateTo] = useState<string>("2023-10-10")
 
-  const [idealTurn, setIdealTurn] = useState<number>(2.5)
-  const [pendingIdealTurn, setPendingIdealTurn] = useState<string>("2.5")
+  const [idealTurn, setIdealTurn] = useState<number>(1.4)
+  const [pendingIdealTurn, setPendingIdealTurn] = useState<string>("1.4")
   const [hasIdealTurnChanges, setHasIdealTurnChanges] = useState(false)
 
   const [view, setView] = useState<View>("l1")
@@ -61,16 +65,35 @@ export function JewelryDashboard() {
   const [types, setTypes] = useState<string[]>([])
   const [caratRanges, setCaratRanges] = useState<string[]>([])
 
+  const [filters, setFilters] = useState<FilterState>({ ...defaultFilters })
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([])
+  const [isSaveFilterDialogOpen, setIsSaveFilterDialogOpen] = useState(false)
+
+  useEffect(() => {
+    setSavedFilters(savedFiltersService.getAll())
+  }, [])
+
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true)
+
+        const itemFilters = {
+          type: filters.type,
+          carat_range: filters.caratRange,
+          style_no: filters.code,
+          quality: filters.quality,
+          memo_status: filters.memoStatus,
+          days_on_memo: filters.daysOnMemo,
+        }
 
         const l1Response = await dataService.getLevel1Grid({
           metric,
           date_from: dateFrom,
           date_to: dateTo,
           ideal_turn: idealTurn,
+          item_filters: itemFilters,
         })
 
         setL1Data(l1Response)
@@ -97,12 +120,32 @@ export function JewelryDashboard() {
     }
 
     loadData()
-  }, [metric, dateFrom, dateTo, idealTurn])
+  }, [
+    metric,
+    dateFrom,
+    dateTo,
+    idealTurn,
+    filters.type,
+    filters.caratRange,
+    filters.code,
+    filters.quality,
+    filters.memoStatus,
+    filters.daysOnMemo,
+  ])
 
   useEffect(() => {
     if (view === "l2" && l2Type && l2CR) {
       async function loadL2Data() {
         try {
+          const itemFilters = {
+            type: filters.type,
+            carat_range: filters.caratRange,
+            style_no: filters.code,
+            quality: filters.quality,
+            memo_status: filters.memoStatus,
+            days_on_memo: filters.daysOnMemo,
+          }
+
           const l2Response = await dataService.getLevel2Grid({
             metric,
             date_from: dateFrom,
@@ -110,6 +153,7 @@ export function JewelryDashboard() {
             ideal_turn: idealTurn,
             category: l2Type,
             carat_range: l2CR,
+            item_filters: itemFilters,
           })
           setL2Data(l2Response)
         } catch (err) {
@@ -118,7 +162,21 @@ export function JewelryDashboard() {
       }
       loadL2Data()
     }
-  }, [view, l2Type, l2CR, metric, dateFrom, dateTo, idealTurn])
+  }, [
+    view,
+    l2Type,
+    l2CR,
+    metric,
+    dateFrom,
+    dateTo,
+    idealTurn,
+    filters.type,
+    filters.caratRange,
+    filters.code,
+    filters.quality,
+    filters.memoStatus,
+    filters.daysOnMemo,
+  ])
 
   useEffect(() => {
     if (view === "details" && l2Type && l2CR && detailsCode && detailsQuality) {
@@ -143,23 +201,42 @@ export function JewelryDashboard() {
   }, [view, l2Type, l2CR, detailsCode, detailsQuality, dateFrom, dateTo, idealTurn])
 
   useEffect(() => {
-    if (displayMode === "table") {
-      async function loadTableData() {
-        try {
-          const tableResponse = await dataService.getTableView({
-            metric,
-            date_from: dateFrom,
-            date_to: dateTo,
-            ideal_turn: idealTurn,
-          })
-          setTableData(tableResponse)
-        } catch (err) {
-          console.error("[v0] Error loading table data:", err)
+    async function loadTableData() {
+      try {
+        const itemFilters = {
+          type: filters.type,
+          carat_range: filters.caratRange,
+          style_no: filters.code,
+          quality: filters.quality,
+          memo_status: filters.memoStatus,
+          days_on_memo: filters.daysOnMemo,
         }
+
+        const tableResponse = await dataService.getTableView({
+          metric,
+          date_from: dateFrom,
+          date_to: dateTo,
+          ideal_turn: idealTurn,
+          item_filters: itemFilters,
+        })
+        setTableData(tableResponse)
+      } catch (err) {
+        console.error("[v0] Error loading table data:", err)
       }
-      loadTableData()
     }
-  }, [displayMode, metric, dateFrom, dateTo, idealTurn])
+    loadTableData()
+  }, [
+    metric,
+    dateFrom,
+    dateTo,
+    idealTurn,
+    filters.type,
+    filters.caratRange,
+    filters.code,
+    filters.quality,
+    filters.memoStatus,
+    filters.daysOnMemo,
+  ])
 
   const handleIdealTurnChange = (value: string) => {
     setPendingIdealTurn(value)
@@ -180,15 +257,152 @@ export function JewelryDashboard() {
     setHasIdealTurnChanges(false)
   }
 
+  const availableFilterOptions = useMemo(() => {
+    const codes = new Set<string>()
+    const qualities = new Set<string>()
+
+    Object.values(tableData?.data || {}).forEach((node: any) => {
+      node.codes?.forEach((code: string) => codes.add(code))
+      node.qualities?.forEach((quality: string) => qualities.add(quality))
+    })
+
+    return {
+      types: types,
+      caratRanges: caratRanges,
+      codes: Array.from(codes).sort(),
+      qualities: Array.from(qualities).sort(),
+    }
+  }, [types, caratRanges, tableData])
+
+  function applyFiltersToL1Cell(type: string, caratRange: string, cell: L1Cell | undefined): boolean {
+    if (!cell) return false
+
+    if (
+      filters.inventoryCount.min !== "" &&
+      (cell.inventory_count || 0) < Number.parseFloat(filters.inventoryCount.min)
+    )
+      return false
+    if (
+      filters.inventoryCount.max !== "" &&
+      (cell.inventory_count || 0) > Number.parseFloat(filters.inventoryCount.max)
+    )
+      return false
+
+    if (
+      filters.inventoryValue.min !== "" &&
+      (cell.inventory_value || 0) < Number.parseFloat(filters.inventoryValue.min)
+    )
+      return false
+    if (
+      filters.inventoryValue.max !== "" &&
+      (cell.inventory_value || 0) > Number.parseFloat(filters.inventoryValue.max)
+    )
+      return false
+
+    if (filters.salesCount.min !== "" && (cell.sales_count || 0) < Number.parseFloat(filters.salesCount.min))
+      return false
+    if (filters.salesCount.max !== "" && (cell.sales_count || 0) > Number.parseFloat(filters.salesCount.max))
+      return false
+
+    if (filters.salesValue.min !== "" && (cell.sales_value || 0) < Number.parseFloat(filters.salesValue.min))
+      return false
+    if (filters.salesValue.max !== "" && (cell.sales_value || 0) > Number.parseFloat(filters.salesValue.max))
+      return false
+
+    if (filters.jobsCount.min !== "" && (cell.jobs_count || 0) < Number.parseFloat(filters.jobsCount.min)) return false
+    if (filters.jobsCount.max !== "" && (cell.jobs_count || 0) > Number.parseFloat(filters.jobsCount.max)) return false
+
+    if (filters.turn.min !== "" && (cell.turn || 0) < Number.parseFloat(filters.turn.min)) return false
+    if (filters.turn.max !== "" && (cell.turn || 0) > Number.parseFloat(filters.turn.max)) return false
+
+    if (filters.needs.min !== "" && (cell.needs || 0) < Number.parseFloat(filters.needs.min)) return false
+    if (filters.needs.max !== "" && (cell.needs || 0) > Number.parseFloat(filters.needs.max)) return false
+
+    if (filters.invAging.min !== "" && (cell.inv_aging || 0) < Number.parseFloat(filters.invAging.min)) return false
+    if (filters.invAging.max !== "" && (cell.inv_aging || 0) > Number.parseFloat(filters.invAging.max)) return false
+
+    if (filters.salesAging.min !== "" && (cell.sales_aging || 0) < Number.parseFloat(filters.salesAging.min))
+      return false
+    if (filters.salesAging.max !== "" && (cell.sales_aging || 0) > Number.parseFloat(filters.salesAging.max))
+      return false
+
+    return true
+  }
+
+  const filteredL1Data = useMemo(() => {
+    if (!l1Data?.data) return null
+
+    const filtered: Record<string, Record<string, L1Cell>> = {}
+
+    caratRanges.forEach((cr) => {
+      types.forEach((type) => {
+        const cell = l1Data.data[cr]?.[type]
+        if (applyFiltersToL1Cell(type, cr, cell)) {
+          if (!filtered[cr]) filtered[cr] = {}
+          filtered[cr][type] = cell
+        }
+      })
+    })
+
+    return { ...l1Data, data: filtered }
+  }, [l1Data, filters, types, caratRanges])
+
+  function handleRemoveFilter(key: string, value?: string) {
+    if (key === "type" || key === "caratRange" || key === "code" || key === "quality") {
+      if (value) {
+        setFilters((prev) => ({
+          ...prev,
+          [key]: prev[key].filter((v) => v !== value),
+        }))
+      }
+    } else {
+      setFilters((prev) => ({
+        ...prev,
+        [key]: { min: "", max: "" },
+      }))
+    }
+  }
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filters.type.length > 0 ||
+      filters.caratRange.length > 0 ||
+      filters.code.length > 0 ||
+      filters.quality.length > 0 ||
+      filters.inventoryCount.min !== "" ||
+      filters.inventoryCount.max !== "" ||
+      filters.inventoryValue.min !== "" ||
+      filters.inventoryValue.max !== "" ||
+      filters.salesCount.min !== "" ||
+      filters.salesCount.max !== "" ||
+      filters.salesValue.min !== "" ||
+      filters.salesValue.max !== "" ||
+      filters.jobsCount.min !== "" ||
+      filters.jobsCount.max !== "" ||
+      filters.turn.min !== "" ||
+      filters.turn.max !== "" ||
+      filters.needs.min !== "" ||
+      filters.needs.max !== "" ||
+      filters.invAging.min !== "" ||
+      filters.invAging.max !== "" ||
+      filters.salesAging.min !== "" ||
+      filters.salesAging.max !== "" ||
+      filters.memoStatus.length > 0 ||
+      filters.daysOnMemo.min !== "" ||
+      filters.daysOnMemo.max !== ""
+    )
+  }, [filters])
+
   const l1AllValues = useMemo(() => {
     const vals: number[] = []
     for (const cr of caratRanges) {
       for (const t of types) {
-        vals.push(Number(metricValue(l1Data?.data?.[cr]?.[t], metric)) || 0)
+        const value = Number(metricValue(filteredL1Data?.data?.[cr]?.[t], metric)) || 0
+        vals.push(value)
       }
     }
     return vals
-  }, [metric, caratRanges, types, l1Data])
+  }, [metric, caratRanges, types, filteredL1Data])
 
   const l2Key = `${l2Type}||${l2CR}`
   const l2Node = l2Data?.data?.[l2Key]
@@ -198,7 +412,8 @@ export function JewelryDashboard() {
     if (!l2Node) return vals
     for (const cd of l2Node.codes) {
       for (const q of l2Node.qualities) {
-        vals.push(Number(metricValue(l2Node.grid?.[cd]?.[q], metric)) || 0)
+        const value = Number(metricValue(l2Node.grid?.[cd]?.[q], metric)) || 0
+        vals.push(value)
       }
     }
     return vals
@@ -208,11 +423,12 @@ export function JewelryDashboard() {
     const arr: L1Cell[] = []
     for (const cr of caratRanges) {
       for (const t of types) {
-        arr.push(l1Data?.data?.[cr]?.[t] || {})
+        const cell = filteredL1Data?.data?.[cr]?.[t]
+        if (cell) arr.push(cell)
       }
     }
     return arr
-  }, [caratRanges, types, l1Data])
+  }, [caratRanges, types, filteredL1Data])
 
   const l2FlatRows: L1Cell[] = useMemo(() => {
     const arr: L1Cell[] = []
@@ -255,7 +471,6 @@ export function JewelryDashboard() {
       { label: "Sales Value", value: `$${Math.round(obj?.sales_value || 0).toLocaleString()}` },
       { label: "Turn", value: (obj?.turn || 0).toFixed(2) },
       { label: "Needs/Surplus", value: (obj?.needs || 0).toLocaleString() },
-      { label: "Overhang", value: `${(obj?.overhang || 0).toLocaleString()} days` },
     ]
 
     return [
@@ -265,6 +480,31 @@ export function JewelryDashboard() {
       "",
       "╚" + "═".repeat(34) + "╝",
     ].join("\n")
+  }
+
+  function handleSaveFilter(name: string, emailEnabled: boolean, emailRecipients: string[]) {
+    const savedFilter = savedFiltersService.save({
+      name,
+      filters,
+      emailEnabled,
+      emailRecipients,
+    })
+    setSavedFilters(savedFiltersService.getAll())
+
+    if (emailEnabled) {
+      console.log("[v0] Email report would be sent to:", emailRecipients)
+    }
+  }
+
+  function handleLoadFilter(filter: SavedFilter) {
+    setFilters(filter.filters)
+    savedFiltersService.updateLastUsed(filter.id)
+    setSavedFilters(savedFiltersService.getAll())
+  }
+
+  function handleDeleteFilter(id: string) {
+    savedFiltersService.delete(id)
+    setSavedFilters(savedFiltersService.getAll())
   }
 
   if (loading) {
@@ -301,7 +541,7 @@ export function JewelryDashboard() {
       </div>
 
       <section className="rounded-lg border bg-card p-3">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
           <label className="flex flex-col text-sm text-muted-foreground">
             <span className="mb-1">Metric</span>
             <select
@@ -396,8 +636,40 @@ export function JewelryDashboard() {
               </Button>
             </div>
           </div>
+
+          <div className="flex flex-col">
+            <span className="mb-1 text-sm text-muted-foreground">Filters</span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsFilterDrawerOpen(true)} className="h-9 flex-1">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                {hasActiveFilters && <span className="ml-2 text-xs text-primary">(Active)</span>}
+              </Button>
+              <SavedFiltersDropdown
+                savedFilters={savedFilters}
+                onLoad={handleLoadFilter}
+                onDelete={handleDeleteFilter}
+              />
+            </div>
+          </div>
         </div>
       </section>
+
+      {hasActiveFilters && (
+        <section className="rounded-lg border bg-card p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setFilters({ ...defaultFilters })}>
+              <X className="h-4 w-4 mr-1" />
+              Clear All
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsSaveFilterDialogOpen(true)}>
+              <Save className="h-4 w-4 mr-1" />
+              Save Filter
+            </Button>
+            <FilterBadges filters={filters} onRemoveFilter={handleRemoveFilter} />
+          </div>
+        </section>
+      )}
 
       <section className="rounded-lg border bg-card p-3">
         <SummaryCards rows={view === "l1" ? l1FlatRows : l2FlatRows} avg={avg} />
@@ -410,7 +682,7 @@ export function JewelryDashboard() {
             rowHeader="Carat Range \\ Type"
             rows={caratRanges}
             cols={types}
-            getCell={(r, c) => l1Data?.data?.[r]?.[c]}
+            getCell={(r, c) => filteredL1Data?.data?.[r]?.[c]}
             metric={metric}
             allValues={l1AllValues}
             idealTurn={idealTurn}
@@ -423,7 +695,13 @@ export function JewelryDashboard() {
       {view === "l1" && displayMode === "table" && (
         <section className="rounded-lg border bg-card p-3">
           <div className="mb-3 text-center text-sm font-semibold">All Data — Table View</div>
-          <DataTableView types={types} caratRanges={caratRanges} L2={tableData?.data || {}} onRowClick={openDetails} />
+          <DataTableView
+            types={types}
+            caratRanges={caratRanges}
+            L2={tableData?.data || {}}
+            filters={filters}
+            onRowClick={openDetails}
+          />
         </section>
       )}
 
@@ -431,56 +709,81 @@ export function JewelryDashboard() {
         <section className="space-y-3">
           <div className="rounded-lg border bg-card p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm font-semibold">Level 2 — Sub-Type (Code) × Quality</div>
+              <div className="text-sm font-semibold">Level 2 — Style No (Code) × Quality</div>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="text-sm text-muted-foreground">
-                  Type:
-                  <select
-                    className="ml-2 rounded-md border bg-background px-2 py-1 text-sm"
-                    value={l2Type}
-                    onChange={(e) => setL2Type(e.target.value)}
-                  >
-                    {types.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm text-muted-foreground">
-                  Carat Range:
-                  <select
-                    className="ml-2 rounded-md border bg-background px-2 py-1 text-sm"
-                    value={l2CR}
-                    onChange={(e) => setL2CR(e.target.value)}
-                  >
-                    {caratRanges.map((cr) => (
-                      <option key={cr} value={cr}>
-                        {cr}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button variant="secondary" onClick={() => setView("l1")}>
+                {displayMode === "grid" && (
+                  <>
+                    <label className="text-sm text-muted-foreground">
+                      Type:
+                      <select
+                        className="ml-2 rounded-md border bg-background px-2 py-1 text-sm"
+                        value={l2Type}
+                        onChange={(e) => setL2Type(e.target.value)}
+                      >
+                        {types.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm text-muted-foreground">
+                      Carat Range:
+                      <select
+                        className="ml-2 rounded-md border bg-background px-2 py-1 text-sm"
+                        value={l2CR}
+                        onChange={(e) => setL2CR(e.target.value)}
+                      >
+                        {caratRanges.map((cr) => (
+                          <option key={cr} value={cr}>
+                            {cr}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                )}
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    setView("l1")
+                    if (displayMode === "table") {
+                      setDisplayMode("grid")
+                    }
+                  }}
+                >
                   Back
                 </Button>
               </div>
             </div>
           </div>
 
-          <section className="rounded-lg border bg-card p-3">
-            <HeatMatrix
-              rowHeader="Sub-Type (Code) \\ Quality"
-              rows={l2Node?.codes ?? []}
-              cols={l2Node?.qualities ?? []}
-              getCell={(code, q) => l2Node?.grid?.[code]?.[q]}
-              metric={metric}
-              allValues={l2AllValues}
-              idealTurn={idealTurn}
-              onCellClick={(code, q) => openDetails(l2Type, l2CR, code, q)}
-              titleForCell={formatTooltip}
-            />
-          </section>
+          {displayMode === "grid" ? (
+            <section className="rounded-lg border bg-card p-3">
+              <HeatMatrix
+                rowHeader="Style No (Code) \\ Quality"
+                rows={l2Node?.codes ?? []}
+                cols={l2Node?.qualities ?? []}
+                getCell={(code, q) => l2Node?.grid?.[code]?.[q]}
+                metric={metric}
+                allValues={l2AllValues}
+                idealTurn={idealTurn}
+                onCellClick={(code, q) => openDetails(l2Type, l2CR, code, q)}
+                titleForCell={formatTooltip}
+              />
+            </section>
+          ) : (
+            <section className="rounded-lg border bg-card p-3">
+              <div className="mb-3 text-center text-sm font-semibold">All Data — Table View</div>
+              <DataTableView
+                types={types}
+                caratRanges={caratRanges}
+                L2={tableData?.data || {}}
+                filters={filters}
+                onRowClick={openDetails}
+              />
+            </section>
+          )}
         </section>
       )}
 
@@ -491,7 +794,7 @@ export function JewelryDashboard() {
               {`Inventory & Sales Details — ${l2Type} • ${l2CR} • ${detailsCode} • ${detailsQuality}`}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={() => setView(displayMode === "table" ? "l1" : "l2")}>
+              <Button variant="default" onClick={() => setView(displayMode === "table" ? "l1" : "l2")}>
                 Back
               </Button>
             </div>
@@ -500,6 +803,24 @@ export function JewelryDashboard() {
           <DetailsTables inventoryRows={detailsInventoryRows} salesRows={detailsSalesRows} />
         </section>
       )}
+
+      <FilterDrawer
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        filters={filters}
+        onFiltersChange={setFilters}
+        availableTypes={availableFilterOptions.types}
+        availableCaratRanges={availableFilterOptions.caratRanges}
+        availableCodes={availableFilterOptions.codes}
+        availableQualities={availableFilterOptions.qualities}
+      />
+
+      <SaveFilterDialog
+        isOpen={isSaveFilterDialogOpen}
+        onClose={() => setIsSaveFilterDialogOpen(false)}
+        filters={filters}
+        onSave={handleSaveFilter}
+      />
     </div>
   )
 }
