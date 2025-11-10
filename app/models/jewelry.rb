@@ -3,8 +3,7 @@ class Jewelry
   include Elasticsearch::Model
   include AASM
 
-  # Elasticsearch index configuration
-  index_name { account.jewelry_index_name }
+  index_name "jewelry_#{Rails.env}"
 
   settings index: {
     number_of_shards: 1,
@@ -165,8 +164,8 @@ class Jewelry
     }
   end
 
-  def self.find(id, account)
-    response = client.get(index: account.jewelry_index_name, id: id)
+  def self.find(id, account = nil)
+    response = client.get(index: index_name, id: id)
     from_elasticsearch(response['_source'], account)
   rescue Elasticsearch::Transport::Transport::Errors::NotFound
     nil
