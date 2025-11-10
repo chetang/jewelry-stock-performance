@@ -1,0 +1,89 @@
+version: '3.8'
+
+# Production-like environment for testing
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: jewelry_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_DB: jewelry_production
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-change_this_password}
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    volumes:
+      - elasticsearch_prod_data:/usr/share/elasticsearch/data
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:-change_this_password}
+    volumes:
+      - redis_prod_data:/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-production
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgresql://jewelry_user:${POSTGRES_PASSWORD}@postgres:5432/jewelry_production
+      ELASTICSEARCH_URL: http://elastic:${ELASTIC_PASSWORD}@elasticsearch:9200
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      RAILS_SERVE_STATIC_FILES: "true"
+      RAILS_LOG_TO_STDOUT: "true"
+    ports:
+      - "3001:3000"
+    depends_on:
+      - postgres
+      - elasticsearch
+      - redis
+    command: >
+      bash -c "
+        bundle exec rails db:migrate &&
+        bundle exec rails assets:precompile &&
+        bundle exec puma -C config/puma.rb
+      "
+
+  sidekiq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-production
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgresql://jewelry_user:${POSTGRES_PASSWORD}@postgres:5432/jewelry_production
+      ELASTICSEARCH_URL: http://elastic:${ELASTIC_PASSWORD}@elasticsearch:9200
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+    depends_on:
+      - postgres
+      - elasticsearch
+      - redis
+      - backend
+    command: bundle exec sidekiq -C config/sidekiq.yml
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-production
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_prod_data:
+  elasticsearch_prod_data:
+  redis_prod_data:

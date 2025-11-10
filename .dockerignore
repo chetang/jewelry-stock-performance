@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Next.js
+.next
+node_modules
+out
+
+# Rails
+tmp
+log
+*.log
+public/packs
+public/packs-test
+
+# Environment
+.env
+.env*.local
+.env.development
+.env.production
+
+# Testing
+coverage
+spec/tmp
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README*.md
+DOCKER*.md
+DEPLOYMENT.md
+SETUP.md
+
+# Terraform
+terraform/
+*.tfstate
+*.tfstate.backup
+.terraform/
