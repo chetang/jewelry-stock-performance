@@ -4,7 +4,7 @@ Devise.setup do |config|
   config.case_insensitive_keys = [:email]
   config.strip_whitespace_keys = [:email]
   config.skip_session_storage = [:http_auth, :params_auth]
-  config.stretching_cost = Rails.env.test? ? 1 : 12
+  config.stretches = Rails.env.test? ? 1 : 12
   config.reconfirmable = true
   config.expire_all_remember_me_on_sign_out = true
   config.password_length = 8..128

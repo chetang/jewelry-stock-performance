@@ -11,7 +11,8 @@ gem 'puma', '~> 6.0'
 gem 'elasticsearch-model', '~> 7.2'
 gem 'elasticsearch-rails', '~> 7.2'
 gem 'redis', '~> 5.0'
-
+gem 'pg', '~> 1.4'
+gem 'activerecord-import', '~> 1.1'
 # Authentication & Authorization
 gem 'devise', '~> 4.9'
 gem 'devise-jwt', '~> 0.11'
