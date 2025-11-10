@@ -18,7 +18,7 @@ class SalesDetectionService
           bool: {
             must: [
               { term: { account_id: account.id } },
-              { term: { state: 'for_sale' } },
+              { term: { state: 'instock' } },
               { range: { last_seen_at: { lt: cutoff_time } } }
             ]
           }

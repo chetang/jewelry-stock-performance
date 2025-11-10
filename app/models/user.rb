@@ -21,6 +21,8 @@ class User < ApplicationRecord
          :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
 
   belongs_to :account, optional: true # CSR users don't belong to specific account
+  has_many :saved_reports, dependent: :destroy
+  has_one :user_preference, dependent: :destroy
 
   ROLES = %w[user admin csr].freeze
 
@@ -46,6 +48,10 @@ class User < ApplicationRecord
 
   def full_name
     "#{first_name} #{last_name}".strip.presence || email
+  end
+
+  def preference
+    user_preference || create_user_preference
   end
 
   private

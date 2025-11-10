@@ -28,12 +28,17 @@ class Jewelry
       indexes :code, type: 'keyword'
       indexes :carat_code, type: 'integer'
       indexes :carat_range, type: 'keyword'
+      indexes :metal_type, type: 'keyword'
+      indexes :metal_code, type: 'keyword'
       indexes :gold_color, type: 'keyword'
       indexes :quality, type: 'keyword'
       indexes :total_carat_weight, type: 'float'
       indexes :unit_price, type: 'float'
       indexes :description, type: 'text', analyzer: 'jewelry_analyzer'
       indexes :date_created, type: 'date'
+      indexes :shipment_date, type: 'date'
+      indexes :location_code, type: 'keyword'
+      indexes :salesperson_code, type: 'keyword'
       indexes :state, type: 'keyword'
       indexes :first_seen_at, type: 'date'
       indexes :last_seen_at, type: 'date'
@@ -44,32 +49,38 @@ class Jewelry
   end
 
   attr_accessor :id, :account_id, :serial_number, :item_number, :type, :code,
-                :carat_code, :carat_range, :gold_color, :quality,
+                :carat_code, :carat_range, :metal_type, :metal_code, :gold_color, :quality,
                 :total_carat_weight, :unit_price, :description, :date_created,
+                :shipment_date, :location_code, :salesperson_code,
                 :state, :first_seen_at, :last_seen_at, :sold_at,
                 :created_at, :updated_at, :account
 
   # State machine
   aasm column: :state do
     state :pending, initial: true
-    state :for_sale
-    state :sold
+    state :onjobs
+    state :instock
+    state :sales
     state :deleted
 
-    event :activate do
-      transitions from: :pending, to: :for_sale
+    event :activate_job do
+      transitions from: :pending, to: :onjobs
+    end
+
+    event :move_to_stock do
+      transitions from: [:pending, :onjobs], to: :instock
     end
 
     event :mark_as_sold do
-      transitions from: [:pending, :for_sale], to: :sold, after: :set_sold_date
+      transitions from: [:onjobs, :instock], to: :sales, after: :set_sold_date
     end
 
     event :mark_as_deleted do
-      transitions from: [:pending, :for_sale], to: :deleted
+      transitions from: [:pending, :onjobs, :instock], to: :deleted
     end
 
     event :reactivate do
-      transitions from: [:sold, :deleted], to: :for_sale
+      transitions from: [:sales, :deleted], to: :instock
     end
   end
 
@@ -81,6 +92,19 @@ class Jewelry
     @state ||= 'pending'
     @created_at ||= Time.current
     @updated_at ||= Time.current
+  end
+
+  def on_memo?
+    location_code == 'on_memo' || location_code == 'memo'
+  end
+
+  def in_house?
+    location_code == 'house' || location_code == 'in_house' || location_code.blank?
+  end
+
+  def days_on_memo
+    return 0 unless on_memo? && shipment_date
+    ((Time.current.to_date - shipment_date.to_date).to_i).abs
   end
 
   def save
@@ -121,12 +145,17 @@ class Jewelry
       code: code,
       carat_code: carat_code,
       carat_range: carat_range,
+      metal_type: metal_type,
+      metal_code: metal_code,
       gold_color: gold_color,
       quality: quality,
       total_carat_weight: total_carat_weight,
       unit_price: unit_price,
       description: description,
       date_created: date_created,
+      shipment_date: shipment_date,
+      location_code: location_code,
+      salesperson_code: salesperson_code,
       state: state,
       first_seen_at: first_seen_at,
       last_seen_at: last_seen_at,

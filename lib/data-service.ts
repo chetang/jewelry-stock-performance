@@ -59,119 +59,172 @@ async function loadMockData(
 
 export const dataService = {
   async getLevel1Grid(params: {
-    metric: string
     date_from: string
     date_to: string
     ideal_turn: number
     item_filters?: {
       type?: string[]
       carat_range?: string[]
-      style_no?: string[]
+      code?: string[]
       quality?: string[]
       memo_status?: string[]
       days_on_memo?: { min: string; max: string }
     }
   }) {
     if (USE_MOCK_DATA) {
-      const data = await loadMockData(params.ideal_turn, params.item_filters)
+      const data = await loadMockData(params.ideal_turn, {
+        type: params.item_filters?.type,
+        caratRange: params.item_filters?.carat_range,
+        styleNo: params.item_filters?.code,
+        quality: params.item_filters?.quality,
+        memoStatus: params.item_filters?.memo_status,
+        daysOnMemo: params.item_filters?.days_on_memo,
+      })
       return {
         data: data.L1,
         types: data.types,
         caratRanges: data.caratRanges,
       }
     }
-    return apiClient.getLevel1Grid(params)
+
+    const result = await apiClient.getLevel1Grid({
+      from_date: params.date_from,
+      to_date: params.date_to,
+      ideal_turn: params.ideal_turn,
+      filter_type: params.item_filters?.type,
+      filter_carat_range: params.item_filters?.carat_range,
+      filter_code: params.item_filters?.code,
+      filter_quality: params.item_filters?.quality,
+      filter_memo_status: params.item_filters?.memo_status,
+      filter_days_on_memo_min: params.item_filters?.days_on_memo?.min,
+      filter_days_on_memo_max: params.item_filters?.days_on_memo?.max,
+    })
+
+    return result
   },
 
   async getLevel2Grid(params: {
-    metric: string
     date_from: string
     date_to: string
     ideal_turn: number
-    category: string
+    type: string
     carat_range: string
     item_filters?: {
       type?: string[]
       carat_range?: string[]
-      style_no?: string[]
+      code?: string[]
       quality?: string[]
       memo_status?: string[]
       days_on_memo?: { min: string; max: string }
     }
   }) {
     if (USE_MOCK_DATA) {
-      const data = await loadMockData(params.ideal_turn, params.item_filters)
+      const data = await loadMockData(params.ideal_turn, {
+        type: params.item_filters?.type,
+        caratRange: params.item_filters?.carat_range,
+        styleNo: params.item_filters?.code,
+        quality: params.item_filters?.quality,
+        memoStatus: params.item_filters?.memo_status,
+        daysOnMemo: params.item_filters?.days_on_memo,
+      })
       return {
         data: data.L2,
       }
     }
-    return apiClient.getLevel2Grid(params)
+
+    return apiClient.getLevel2Grid({
+      from_date: params.date_from,
+      to_date: params.date_to,
+      ideal_turn: params.ideal_turn,
+      type: params.type,
+      carat_range: params.carat_range,
+      filter_type: params.item_filters?.type,
+      filter_carat_range: params.item_filters?.carat_range,
+      filter_code: params.item_filters?.code,
+      filter_quality: params.item_filters?.quality,
+      filter_memo_status: params.item_filters?.memo_status,
+      filter_days_on_memo_min: params.item_filters?.days_on_memo?.min,
+      filter_days_on_memo_max: params.item_filters?.days_on_memo?.max,
+    })
   },
 
   async getLevel3Detail(params: {
     date_from: string
     date_to: string
     ideal_turn: number
-    category: string
+    type: string
     carat_range: string
-    sub_category: string
-    quality: string
+    code?: string
+    quality?: string
   }) {
     if (USE_MOCK_DATA) {
       const data = await loadMockData(params.ideal_turn)
 
-      // Filter inventory, sales, and jobs for the specific combination
       const inventoryRows = data.rawRows.filter(
         (r: any) =>
-          r.Type === params.category &&
+          r.Type === params.type &&
           r["Carat Range"] === params.carat_range &&
-          r.Code === params.sub_category &&
-          r.Quality === params.quality,
+          (!params.code || r.Code === params.code) &&
+          (!params.quality || r.Quality === params.quality),
       )
 
       const salesRows = data.salesRows.filter(
         (s: any) =>
-          s.Type === params.category &&
+          s.Type === params.type &&
           s["Carat Range"] === params.carat_range &&
-          s.Code === params.sub_category &&
-          s.Quality === params.quality,
+          (!params.code || s.Code === params.code) &&
+          (!params.quality || s.Quality === params.quality),
       )
 
       const jobsRows = data.jobsRows.filter(
         (j: any) =>
-          j.Type === params.category &&
+          j.Type === params.type &&
           j["Carat Range"] === params.carat_range &&
-          j.Code === params.sub_category &&
-          j.Quality === params.quality,
+          (!params.code || j.Code === params.code) &&
+          (!params.quality || j.Quality === params.quality),
       )
 
       return {
-        data: {
-          inventoryRows,
-          salesRows,
-          jobsRows,
-        },
+        stock: inventoryRows,
+        jobs: jobsRows,
+        sales: salesRows,
+        summary: {},
       }
     }
-    return apiClient.getLevel3Detail(params)
+
+    return apiClient.getLevel3Detail({
+      from_date: params.date_from,
+      to_date: params.date_to,
+      ideal_turn: params.ideal_turn,
+      type: params.type,
+      carat_range: params.carat_range,
+      code: params.code,
+      quality: params.quality,
+    })
   },
 
   async getTableView(params: {
-    metric: string
     date_from: string
     date_to: string
     ideal_turn: number
     item_filters?: {
       type?: string[]
       carat_range?: string[]
-      style_no?: string[]
+      code?: string[]
       quality?: string[]
       memo_status?: string[]
       days_on_memo?: { min: string; max: string }
     }
   }) {
     if (USE_MOCK_DATA) {
-      const data = await loadMockData(params.ideal_turn, params.item_filters)
+      const data = await loadMockData(params.ideal_turn, {
+        type: params.item_filters?.type,
+        caratRange: params.item_filters?.carat_range,
+        styleNo: params.item_filters?.code,
+        quality: params.item_filters?.quality,
+        memoStatus: params.item_filters?.memo_status,
+        daysOnMemo: params.item_filters?.days_on_memo,
+      })
 
       return {
         data: data.L2,
@@ -179,7 +232,33 @@ export const dataService = {
         caratRanges: data.caratRanges,
       }
     }
-    return apiClient.getTableView(params)
+
+    return apiClient.getTableView({
+      from_date: params.date_from,
+      to_date: params.date_to,
+      ideal_turn: params.ideal_turn,
+      filter_type: params.item_filters?.type,
+      filter_carat_range: params.item_filters?.carat_range,
+      filter_code: params.item_filters?.code,
+      filter_quality: params.item_filters?.quality,
+      filter_memo_status: params.item_filters?.memo_status,
+      filter_days_on_memo_min: params.item_filters?.days_on_memo?.min,
+      filter_days_on_memo_max: params.item_filters?.days_on_memo?.max,
+    })
+  },
+
+  async getFilterOptions() {
+    if (USE_MOCK_DATA) {
+      const data = await loadMockData(1.4)
+      return {
+        types: data.types,
+        carat_ranges: data.caratRanges,
+        codes: data.styleNos,
+        qualities: data.qualities,
+      }
+    }
+
+    return apiClient.getFilterOptions()
   },
 
   isMockMode() {

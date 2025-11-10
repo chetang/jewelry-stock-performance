@@ -1,0 +1,42 @@
+# Google Cloud Build configuration
+steps:
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'gcr.io/$PROJECT_ID/jewelry-app:$COMMIT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/jewelry-app:latest',
+      '.'
+    ]
+
+  # Push image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/jewelry-app:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/jewelry-app:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', 'jewelry-app',
+      '--image', 'gcr.io/$PROJECT_ID/jewelry-app:$COMMIT_SHA',
+      '--region', 'us-central1',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--set-env-vars', 'RAILS_ENV=production',
+      '--set-cloudsql-instances', '$_CLOUD_SQL_CONNECTION',
+      '--add-cloudsql-instances', '$_ELASTICSEARCH_INSTANCE'
+    ]
+
+images:
+  - 'gcr.io/$PROJECT_ID/jewelry-app:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/jewelry-app:latest'
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  
+substitutions:
+  _CLOUD_SQL_CONNECTION: 'your-project:us-central1:jewelry-postgres'
+  _ELASTICSEARCH_INSTANCE: 'your-elasticsearch-instance'

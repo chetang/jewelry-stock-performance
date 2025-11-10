@@ -14,6 +14,26 @@ Rails.application.routes.draw do
       get 'jewelry/level2', to: 'jewelry#level2'
       get 'jewelry/level3', to: 'jewelry#level3'
       get 'jewelry/table', to: 'jewelry#table'
+      get 'jewelry/filter_options', to: 'jewelry#filter_options'
+
+      # Saved reports
+      resources :saved_reports, only: [:index, :create, :update, :destroy] do
+        member do
+          post :use
+        end
+      end
+
+      # User preferences
+      resource :user_preferences, only: [:show, :update]
+
+      # Imports
+      post 'imports/csv', to: 'imports#csv'
+
+      # Exports
+      get 'exports/table', to: 'exports#table'
+      get 'exports/inventory', to: 'exports#inventory'
+      get 'exports/jobs', to: 'exports#jobs'
+      get 'exports/sales', to: 'exports#sales'
     end
   end
 

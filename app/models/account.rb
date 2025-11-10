@@ -16,6 +16,7 @@
 class Account < ApplicationRecord
   has_many :users, dependent: :destroy
   has_many :ftp_imports, dependent: :destroy
+  has_many :saved_reports, dependent: :destroy
 
   validates :name, presence: true
   validates :subdomain, presence: true, uniqueness: true, 

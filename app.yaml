@@ -1,0 +1,47 @@
+# Google App Engine configuration for Rails backend
+runtime: ruby
+env: standard
+entrypoint: bundle exec rails server -p $PORT
+
+# Automatic scaling configuration
+automatic_scaling:
+  target_cpu_utilization: 0.65
+  min_instances: 1
+  max_instances: 10
+  min_pending_latency: 30ms
+  max_pending_latency: automatic
+  max_concurrent_requests: 8
+
+# Environment variables
+env_variables:
+  RAILS_ENV: production
+  RAILS_LOG_TO_STDOUT: "true"
+  RAILS_SERVE_STATIC_FILES: "true"
+  SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+  DATABASE_URL: ${DATABASE_URL}
+  ELASTICSEARCH_URL: ${ELASTICSEARCH_URL}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+# Cloud SQL connection
+beta_settings:
+  cloud_sql_instances: ${CLOUD_SQL_CONNECTION_NAME}
+
+# Resource limits
+resources:
+  cpu: 1
+  memory_gb: 2
+  disk_size_gb: 10
+
+# Health check
+health_check:
+  enable_health_check: true
+  check_interval_sec: 5
+  timeout_sec: 4
+  unhealthy_threshold: 2
+  healthy_threshold: 2
+
+# Handlers for static files
+handlers:
+- url: /.*
+  script: auto
+  secure: always
