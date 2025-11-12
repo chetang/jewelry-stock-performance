@@ -51,28 +51,68 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
       target: backend
-    command: sh -c "rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0"
-    environment:
-      RAILS_ENV: development
-      DATABASE_URL: postgresql://jewelry_user:jewelry_password@postgres:5432/jewelry_user
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      REDIS_URL: redis://redis:6379/0
-      RAILS_MAX_THREADS: 5
-      SECRET_KEY_BASE: development_secret_key_base_change_in_production
-    ports:
-      - "3001:3000"
+    working_dir: /app
     volumes:
       - .:/app
-      - node_modules:/app/node_modules
+    environment:
+      RAILS_LOG_TO_STDOUT: "true"
+      PORT: "3001"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: jewelry_user
+      DB_PASSWORD: jewelry_password
+      DB_NAME: jewelry_user
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      # remove any existing 'entrypoint:' line or keep it; either is okay here
+    command: >
+      sh -lc 'bundle check || bundle install &&
+              rm -f tmp/pids/server.pid &&
+              exec bundle exec rails server -b 0.0.0.0 -p ${PORT:-3001}'
+    ports:
+      - "3001:3001"
     depends_on:
-      postgres:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
+      - elasticsearch
+
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: backend
+  #   command: >
+  #     sh -lc
+  #     "rm -f tmp/pids/server.pid &&
+  #      bundle check || bundle install &&
+  #      bundle exec rails db:prepare || true &&
+  #      exec bundle exec rails s -b 0.0.0.0 -p ${PORT:-3001}"
+  #   environment:
+  #     - RAILS_LOG_TO_STDOUT=true
+  #     - PORT=3001
+  #   ports:
+  #     - "3001:3001"
+  #   # command: sh -c "rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0"
+  #   # environment:
+  #   #   RAILS_ENV: development
+  #   #   DATABASE_URL: postgresql://jewelry_user:jewelry_password@postgres:5432/jewelry_user
+  #   #   ELASTICSEARCH_URL: http://elasticsearch:9200
+  #   #   REDIS_URL: redis://redis:6379/0
+  #   #   RAILS_MAX_THREADS: 5
+  #   #   SECRET_KEY_BASE: development_secret_key_base_change_in_production
+  #   # ports:
+  #   #   - "3001:3000"
+  #   working_dir: /app
+  #   volumes:
+  #     - .-to-/app
+  #     - node_modules:/app/node_modules
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     elasticsearch:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
 
   # Sidekiq Background Jobs
   sidekiq:

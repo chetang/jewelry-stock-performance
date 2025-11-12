@@ -13,6 +13,6 @@ class CreateSavedReports < ActiveRecord::Migration[7.0]
     end
 
     add_index :saved_reports, [:user_id, :name]
-    add_index :saved_reports, :account_id
+    # add_index :saved_reports, :account_id
   end
 end

@@ -1,16 +1,32 @@
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  url: <%= ENV.fetch("DATABASE_URL", "postgres://jewelryapp:gnldjewelry@1@localhost:5433/jewelryappdb") %>
+  # host: localhost
+  # port: 5432
+  # username: jewelryapp
+  # password: gnldjewelry@1
+  # pool: 10
+  host: <%= ENV.fetch("DB_HOST", "postgres") %>
+  port: <%= ENV.fetch("DB_PORT", "5432") %>
+  username: <%= ENV.fetch("DB_USER", "jewelry_user") %>
+  password: <%= ENV.fetch("DB_PASSWORD", "jewelry_password") %>
+  pool: 10
 
 development:
   <<: *default
-  database: jewelry_stock_development
+  database: <%= ENV.fetch("DB_NAME", "jewelry_user") %>
 
 test:
   <<: *default
-  database: jewelry_stock_test
+  database: <%= ENV.fetch("DB_NAME_TEST", "jewelry_user_test") %>
+
+# development:
+#   <<: *default
+#   database: jewelry_stock_development
+
+# test:
+#   <<: *default
+#   database: jewelry_stock_test
 
 production:
   <<: *default
